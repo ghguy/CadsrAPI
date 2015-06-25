@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="Cadsr API" default="compile" basedir=".">
+
+  <property file="build.properties"/>
+
+  <property name="src.dir" value="src" />
+  <property name="test.src.dir" value="test/src" />
+  <property name="class.dir" value="./classes" /> 
+  <property name="test.class.dir" value="./test/classes" />
+  <property name="lib.dir" value="./lib" />
+  <property name="dist.dir" value="./dist" />
+  <property name="docs.dir" value="./docs" />
+  <property name="config.dir" value="properties" />
+  <property name="test.config.dir" value="test/properties" />
+  <property name="hibernate.mapping" value="hibernate-mapping" />
+
+  <path id="xdoclet.classpath">
+    <fileset dir="${lib.dir}">
+      <include name="xdoclet/*.jar"/>
+    </fileset>
+  </path>
+  
+  <path id="compile.classpath">
+    <fileset dir="${lib.dir}">
+      <include name="compile/*.jar"/>
+    </fileset>
+    <fileset dir="${lib.dir}">
+      <include name="rt/*.jar"/>
+    </fileset>
+    <pathelement location="${class.dir}"/>
+  </path>
+
+  <path id="test.compile.classpath">
+    <fileset dir="${lib.dir}">
+      <include name="compile/*.jar"/>
+    </fileset>
+    <fileset dir="${lib.dir}">
+      <include name="rt/*.jar"/>
+    </fileset>
+    <fileset dir="${lib.dir}">
+      <include name="aop/*.jar"/>
+    </fileset>
+    <pathelement location="${class.dir}"/>
+  </path>
+
+  <path id="test.classpath">
+    <fileset dir="${lib.dir}">
+      <include name="compile/*.jar"/>
+    </fileset>
+    <fileset dir="${lib.dir}">
+      <include name="rt/*.jar"/>
+    </fileset>
+    <fileset dir="${lib.dir}">
+      <include name="aop/*.jar"/>
+    </fileset>
+    <pathelement location="${class.dir}"/>
+    <pathelement location="${test.class.dir}"/>
+  </path>
+
+  <target name="clean"> 
+    <delete dir="${class.dir}" failonerror="true" />
+    <delete dir="${test.class.dir}" failonerror="true" />
+<!--    <delete dir="${hibernate.mapping}" failonerror="true" /> -->
+ </target>
+
+ <target name="init">
+    <mkdir dir="${class.dir}"/> 
+    <mkdir dir="${dist.dir}"/> 
+    <mkdir dir="${test.class.dir}"/>
+    <mkdir dir="${hibernate.mapping}"/>
+ </target>
+ 
+
+ <target name="doc">
+   <mkdir dir="${docs.dir}"/>
+   <mkdir dir="${docs.dir}/api"/>
+
+  <javadoc
+    destdir="{$docs}/api"
+    author="true"
+    version="true"
+    use="true"
+    windowtitle="caDSR API">
+
+    <packageset dir="src" defaultexcludes="yes">
+      <include name="gov/nih/nci/ncicb/cadsr/domain/*" />
+      <include name="gov/nih/nci/ncicb/cadsr/dao/*" />
+    </packageset>
+
+    <doctitle><![CDATA[<h1>caDSR API</h1>]]></doctitle>
+    <bottom><![CDATA[<i>Support OSS.</i>]]></bottom>
+    <tag name="todo" scope="all" description="To do:" />
+    <link href="http://java.sun.com/products/jdk/1.4/docs/api/" />
+    <link href="http://developer.java.sun.com/developer/products/xml/docs/api/"/>
+  </javadoc>
+
+ </target>
+
+  <target name="hibernate" depends="init" description="Standard Hibernate">
+    <taskdef classpathref="xdoclet.classpath"
+      classname="xdoclet.modules.hibernate.HibernateDocletTask" 
+      name="hibernatedoclet"/>
+    
+    
+    <hibernatedoclet excludedTags="@version,@author,@todo,@see" 
+      destDir="${hibernate.mapping}"
+      addedTags="@xdoclet-generated at ${TODAY}, @author cludet" >
+      
+      <fileset dir="${src.dir}"  includes="**/*.java"/>
+      <hibernate version="3.0" >
+        
+      </hibernate>
+    </hibernatedoclet>
+  </target>
+
+  <target name="compile" depends="init">
+    <javac
+      destdir="${class.dir}"
+      debug="on"
+      srcdir="${src.dir}"
+      deprecation="true"
+      >
+      <classpath refid="compile.classpath"/>
+    </javac>
+    
+    <copy todir="${class.dir}">
+      <fileset dir="${hibernate.mapping}">
+        <include name="**/*.hbm.xml"/>
+      </fileset>
+    </copy>
+
+    <javac
+      debug="on"
+      destdir="${test.class.dir}"
+      srcdir="${test.src.dir}"
+      deprecation="false"
+      >
+      <classpath refid="test.compile.classpath"/>
+    </javac>
+
+  </target>
+  
+  <target name="copyspringXML" depends="compile">
+        <copy todir="${class.dir}">
+          <fileset dir="${config.dir}/spring">
+            <include name="*.xml"/>
+        </fileset>
+      </copy>
+  </target>
+
+  <target name="prepare" depends="compile">
+    <copy todir="${class.dir}">
+      <!---
+        This is taken care of by target copyspringXML.
+        Done to allow build with custom spring discriptors
+      <fileset dir="${config.dir}/spring">
+        <include name="*.xml"/>
+      </fileset>
+      -->
+      
+      <fileset dir="${config.dir}">
+        <include name="*.properties"/>
+      </fileset>
+    </copy>
+    <copy todir="META-INF">
+      <fileset dir="${config.dir}/aop">
+        <include name="*.xml"/>
+      </fileset>
+    </copy>
+    <copy todir="${test.class.dir}">
+      <fileset dir="${test.config.dir}">
+        <include name="*.properties"/>
+        <include name="*.xml"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="dist" depends="prepare,copyspringXML">
+    <jar destfile="${dist.dir}/cadsr-api.jar">
+      <fileset dir="${class.dir}">
+        <exclude name="**/log4j.properties"/>
+      </fileset>
+    </jar>
+  </target>
+
+  <target name="deploy" depends="dist">
+    <copy todir="${deploy.dir}" file="${dist.dir}/cadsr-api.jar"/>
+  </target>
+
+  <!-- Used to build api with custom spring discriptors -->
+  <target name="dist_ext" depends="prepare">
+      <jar destfile="${dist.dir}/cadsr-api.jar">
+        <fileset dir="${class.dir}">
+          <exclude name="**/log4j.properties"/>
+        </fileset>
+        <manifest>
+               <attribute name="Built-By" value="${user.name}"/>
+               <attribute name="Class-Path" 
+                  value="../WEB-INF/ehcache.xml"/>
+        </manifest>        
+      </jar>
+  </target>
+  
+  <target name="jUnit" depends="prepare,copyspringXML">
+  <echo message="classpath:${test.classpath}"/>
+    <java classname="gov.nih.nci.ncicb.cadsr.CadsrTestCase" classpathref="test.classpath" 
+      fork="yes"
+      >
+      <arg value="-verbose"/>
+    </java>
+  </target>
+
+</project>
